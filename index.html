@@ -1,0 +1,1479 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>𓃥 白六 3D 建模 - 經典小瑪莉遊戲機（對齊與音訊強化版）</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #12141a;
+      color: #f1f5f9;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans TC", sans-serif;
+      overflow: hidden;
+      width: 100vw;
+      height: 100vh;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    #canvas-container {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+    /* 可收合懸浮控制面板 */
+    .control-panel {
+      position: fixed;
+      top: 16px;
+      right: 16px;
+      width: 265px;
+      background: rgba(20, 24, 33, 0.88);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      border-radius: 14px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.55);
+      z-index: 100;
+      transition: all 0.25s ease;
+      overflow: hidden;
+    }
+    .panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 14px;
+      background: rgba(255, 255, 255, 0.05);
+      cursor: pointer;
+    }
+    .panel-title {
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      color: #fbbf24;
+    }
+    .toggle-btn {
+      background: none;
+      border: none;
+      color: #cbd5e1;
+      font-size: 16px;
+      cursor: pointer;
+      line-height: 1;
+    }
+    .panel-body {
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 11px;
+    }
+    .control-panel.collapsed .panel-body {
+      display: none;
+    }
+    .control-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .control-label {
+      font-size: 12px;
+      color: #94a3b8;
+      font-weight: 600;
+    }
+    .btn-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 6px;
+    }
+    .btn-row-2 {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 6px;
+    }
+    .style-btn {
+      padding: 7px 4px;
+      border-radius: 8px;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      background: rgba(255, 255, 255, 0.06);
+      color: #e2e8f0;
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .style-btn:hover { background: rgba(255, 255, 255, 0.15); }
+    .style-btn.active {
+      background: #f59e0b;
+      color: #111827;
+      font-weight: 700;
+      border-color: #fbbf24;
+    }
+    .action-btn {
+      width: 100%;
+      padding: 8px 10px;
+      border-radius: 8px;
+      border: none;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, #3b82f6, #2563eb);
+      color: #ffffff;
+    }
+    .btn-primary:hover { filter: brightness(1.1); }
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.1);
+      color: #f8fafc;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+    }
+    .btn-secondary:hover { background: rgba(255, 255, 255, 0.18); }
+    .btn-active-green {
+      background: rgba(16, 185, 129, 0.28);
+      color: #6ee7b7;
+      border: 1px solid rgba(16, 185, 129, 0.55);
+    }
+    .status-banner {
+      position: fixed;
+      bottom: 18px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(15, 23, 42, 0.9);
+      border: 1px solid rgba(251, 191, 36, 0.45);
+      color: #fde047;
+      padding: 8px 18px;
+      border-radius: 999px;
+      font-size: 13px;
+      font-weight: 600;
+      pointer-events: none;
+      backdrop-filter: blur(8px);
+      z-index: 90;
+      max-width: 92vw;
+      text-align: center;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .hint-text {
+      font-size: 11px;
+      color: #94a3b8;
+      line-height: 1.45;
+      background: rgba(255, 255, 255, 0.04);
+      padding: 8px;
+      border-radius: 8px;
+    }
+  </style>
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+        "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+      }
+    }
+  </script>
+</head>
+<body>
+  <div id="canvas-container"></div>
+  <div class="status-banner" id="statusBanner">🔊 輕觸畫面或按鍵即可播放《Hawaii Five-O》音樂與音效！</div>
+
+  <div class="control-panel" id="controlPanel">
+    <div class="panel-header" id="panelHeader">
+      <span class="panel-title">𓃥 小瑪莉遊戲機 3D</span>
+      <button class="toggle-btn" id="toggleBtn">▾</button>
+    </div>
+    <div class="panel-body">
+      <div class="control-group">
+        <span class="control-label">機殼外觀塗裝</span>
+        <div class="btn-row">
+          <button class="style-btn active" data-theme="white">珍珠白</button>
+          <button class="style-btn" data-theme="darkwood">胡桃木</button>
+          <button class="style-btn" data-theme="lightwood">白橡木</button>
+        </div>
+      </div>
+
+      <div class="control-group">
+        <span class="control-label">音樂與音效 (Hawaii Five-O)</span>
+        <div class="btn-row-2">
+          <button class="action-btn btn-active-green" id="toggleBgmBtn">🎵 BGM：開啟</button>
+          <button class="action-btn btn-active-green" id="toggleSfxBtn">🔊 音效：開啟</button>
+        </div>
+      </div>
+
+      <div class="control-group">
+        <span class="control-label">快捷控制與視角</span>
+        <button class="action-btn btn-secondary" id="insertCoinBtn">🪙 投幣 (+10 分)</button>
+        <div class="btn-row-2">
+          <button class="action-btn btn-secondary" id="focusKeysBtn">🕹️ 特寫按鍵</button>
+          <button class="action-btn btn-secondary" id="resetCamBtn">🎯 全機視角</button>
+        </div>
+      </div>
+
+      <div class="control-group">
+        <span class="control-label">模型輸出</span>
+        <button class="action-btn btn-primary" id="exportGlbBtn">📦 匯出 GLB 檔案</button>
+      </div>
+
+      <div class="hint-text">
+        • <b>手機提醒</b>：若無聲音請確認手機側邊未開啟靜音模式<br>
+        • <b>下排 8 鍵</b>：垂直對齊螢幕下方 8 種水果倍率格<br>
+        • <b>上排功能鍵</b>：得分移分、比倍大小、全押、清除、啟動、退幣
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+    import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
+    import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js';
+
+    // =========================================================================
+    // 0. 強化版 Web Audio API 音訊引擎（支援 iOS/Android/桌面自動解鎖與動態增益）
+    // =========================================================================
+    class ArcadeAudioEngine {
+      constructor() {
+        this.ctx = null;
+        this.masterGain = null;
+        this.bgmEnabled = true;
+        this.sfxEnabled = true;
+        this.bgmTimer = null;
+        this.bgmStep = 0;
+        this.isBgmPlaying = false;
+        this.unlocked = false;
+      }
+
+      unlock() {
+        if (!this.ctx) {
+          const AudioCtx = window.AudioContext || window.webkitAudioContext;
+          if (!AudioCtx) return;
+          this.ctx = new AudioCtx();
+
+          // 建立動態壓縮器與總音量增益，讓聲音清晰飽滿不破音
+          const compressor = this.ctx.createDynamicsCompressor();
+          compressor.threshold.setValueAtTime(-16, this.ctx.currentTime);
+          compressor.knee.setValueAtTime(20, this.ctx.currentTime);
+          compressor.ratio.setValueAtTime(6, this.ctx.currentTime);
+          compressor.attack.setValueAtTime(0.005, this.ctx.currentTime);
+          compressor.release.setValueAtTime(0.15, this.ctx.currentTime);
+
+          this.masterGain = this.ctx.createGain();
+          this.masterGain.gain.setValueAtTime(0.85, this.ctx.currentTime);
+
+          compressor.connect(this.masterGain);
+          this.masterGain.connect(this.ctx.destination);
+          this.outputNode = compressor;
+        }
+
+        if (this.ctx.state === 'suspended') {
+          this.ctx.resume();
+        }
+
+        // 播放極短無聲緩衝解鎖 iOS Safari 音訊通道
+        if (!this.unlocked && this.ctx) {
+          try {
+            const buffer = this.ctx.createBuffer(1, 1, 22050);
+            const source = this.ctx.createBufferSource();
+            source.buffer = buffer;
+            source.connect(this.ctx.destination);
+            source.start(0);
+            this.unlocked = true;
+          } catch (e) {}
+        }
+
+        if (this.bgmEnabled && !this.isBgmPlaying) {
+          this.startBgm();
+        }
+      }
+
+      playTone(freq, duration, type = 'square', gainVal = 0.22, delay = 0, slideToFreq = null) {
+        if (!this.sfxEnabled) return;
+        this.unlock();
+        if (!this.ctx || !this.outputNode) return;
+
+        const now = this.ctx.currentTime + delay;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, now);
+        if (slideToFreq) {
+          osc.frequency.exponentialRampToValueAtTime(slideToFreq, now + duration);
+        }
+        gain.gain.setValueAtTime(gainVal, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+        osc.connect(gain);
+        gain.connect(this.outputNode);
+        osc.start(now);
+        osc.stop(now + duration + 0.015);
+      }
+
+      playCoin() {
+        this.playTone(987.77, 0.08, 'square', 0.25, 0);
+        this.playTone(1318.51, 0.30, 'square', 0.25, 0.07);
+      }
+
+      playBet(index) {
+        const scale = [523.25, 587.33, 659.25, 698.46, 783.99, 880.00, 987.77, 1046.50];
+        this.playTone(scale[index] || 660, 0.075, 'square', 0.20);
+      }
+
+      playButton() {
+        this.playTone(440, 0.06, 'triangle', 0.26);
+        this.playTone(660, 0.07, 'triangle', 0.22, 0.035);
+      }
+
+      playStep(stepIndex) {
+        const pitch = 740 + (stepIndex % 4) * 65;
+        this.playTone(pitch, 0.038, 'square', 0.16);
+      }
+
+      playWin(isBigWin = false) {
+        if (isBigWin) {
+          const notes = [523.25, 659.25, 783.99, 1046.50, 783.99, 1046.50, 1318.51, 1567.98];
+          notes.forEach((f, i) => {
+            this.playTone(f, i === notes.length - 1 ? 0.38 : 0.11, 'square', 0.26, i * 0.09);
+          });
+        } else {
+          const notes = [523.25, 659.25, 783.99, 1046.50];
+          notes.forEach((f, i) => {
+            this.playTone(f, 0.13, 'square', 0.24, i * 0.085);
+          });
+        }
+      }
+
+      playOnceMore() {
+        const notes = [587.33, 739.99, 880.00, 1174.66, 880.00, 1174.66];
+        notes.forEach((f, i) => {
+          this.playTone(f, 0.085, 'triangle', 0.26, i * 0.065);
+        });
+      }
+
+      playLose() {
+        this.playTone(311.13, 0.15, 'sawtooth', 0.20, 0);
+        this.playTone(220.00, 0.26, 'sawtooth', 0.20, 0.14);
+      }
+
+      playTakeScore() {
+        for (let i = 0; i < 6; i++) {
+          this.playTone(880 + i * 95, 0.05, 'square', 0.20, i * 0.045);
+        }
+      }
+
+      playPayoutCoin() {
+        this.playTone(1760, 0.045, 'sine', 0.22, 0, 1320);
+        this.playTone(2489, 0.065, 'triangle', 0.16, 0.03);
+      }
+
+      // 經典《Hawaii Five-O》主題曲 8-bit 編曲循環
+      startBgm() {
+        if (this.isBgmPlaying || !this.bgmEnabled) return;
+        this.isBgmPlaying = true;
+        this.bgmStep = 0;
+
+        const melody = [
+          // Intro 定音鼓與銅管起手
+          { f: 523.25, d: 2 }, null, { f: 659.25, d: 1 }, { f: 783.99, d: 2 }, null, { f: 659.25, d: 1 }, { f: 523.25, d: 2 }, null,
+          { f: 587.33, d: 2 }, null, { f: 698.46, d: 1 }, { f: 880.00, d: 2 }, null, { f: 698.46, d: 1 }, { f: 587.33, d: 2 }, null,
+          // Main Theme Hook
+          { f: 523.25, d: 1.5 }, null, { f: 523.25, d: 1 }, { f: 659.25, d: 1 }, { f: 783.99, d: 2.5 }, null, null, { f: 659.25, d: 1 },
+          { f: 880.00, d: 2 }, null, { f: 783.99, d: 1.5 }, null, { f: 659.25, d: 1.5 }, null, { f: 587.33, d: 2 }, null,
+          // 第二樂句高潮
+          { f: 523.25, d: 1.5 }, null, { f: 523.25, d: 1 }, { f: 659.25, d: 1 }, { f: 783.99, d: 2.5 }, null, null, { f: 783.99, d: 1 },
+          { f: 1046.50, d: 2.5 }, null, null, { f: 880.00, d: 1 }, { f: 783.99, d: 1.5 }, null, { f: 659.25, d: 2 }, null,
+          // 過門轉折
+          { f: 698.46, d: 1.5 }, null, { f: 880.00, d: 1.5 }, null, { f: 1046.50, d: 2 }, null, { f: 880.00, d: 1 }, { f: 783.99, d: 1 },
+          { f: 659.25, d: 1.5 }, null, { f: 587.33, d: 1.5 }, null, { f: 523.25, d: 3 }, null, null, null
+        ];
+
+        const bassline = [
+          130.81, 0, 130.81, 196.00, 130.81, 0, 164.81, 196.00,
+          146.83, 0, 146.83, 220.00, 146.83, 0, 174.61, 220.00,
+          130.81, 0, 130.81, 196.00, 130.81, 0, 164.81, 196.00,
+          174.61, 0, 174.61, 220.00, 196.00, 0, 196.00, 246.94,
+          130.81, 0, 130.81, 196.00, 130.81, 0, 164.81, 196.00,
+          220.00, 0, 220.00, 261.63, 196.00, 0, 164.81, 196.00,
+          174.61, 0, 174.61, 220.00, 174.61, 0, 196.00, 220.00,
+          196.00, 0, 196.00, 146.83, 130.81, 0, 196.00, 130.81
+        ];
+
+        const stepDurationSec = 0.135;
+
+        const tick = () => {
+          if (!this.bgmEnabled || !this.ctx || !this.outputNode) {
+            this.isBgmPlaying = false;
+            return;
+          }
+          if (this.ctx.state === 'suspended') {
+            this.ctx.resume();
+          }
+          const idx = this.bgmStep % melody.length;
+          const now = this.ctx.currentTime;
+
+          // 主旋律 (方波)
+          const note = melody[idx];
+          if (note) {
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = 'square';
+            osc.frequency.setValueAtTime(note.f, now);
+            const dur = note.d * stepDurationSec * 0.92;
+            gain.gain.setValueAtTime(0.095, now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + dur);
+            osc.connect(gain);
+            gain.connect(this.outputNode);
+            osc.start(now);
+            osc.stop(now + dur + 0.01);
+          }
+
+          // 低音貝斯 (三角波)
+          const bassFreq = bassline[idx];
+          if (bassFreq > 0) {
+            const bOsc = this.ctx.createOscillator();
+            const bGain = this.ctx.createGain();
+            bOsc.type = 'triangle';
+            bOsc.frequency.setValueAtTime(bassFreq, now);
+            bGain.gain.setValueAtTime(0.15, now);
+            bGain.gain.exponentialRampToValueAtTime(0.001, now + stepDurationSec * 0.92);
+            bOsc.connect(bGain);
+            bGain.connect(this.outputNode);
+            bOsc.start(now);
+            bOsc.stop(now + stepDurationSec);
+          }
+
+          // 鼓點節奏
+          if (idx % 4 === 2) {
+            const dOsc = this.ctx.createOscillator();
+            const dGain = this.ctx.createGain();
+            dOsc.type = 'sawtooth';
+            dOsc.frequency.setValueAtTime(190, now);
+            dOsc.frequency.exponentialRampToValueAtTime(55, now + 0.048);
+            dGain.gain.setValueAtTime(0.075, now);
+            dGain.gain.exponentialRampToValueAtTime(0.001, now + 0.055);
+            dOsc.connect(dGain);
+            dGain.connect(this.outputNode);
+            dOsc.start(now);
+            dOsc.stop(now + 0.06);
+          }
+
+          this.bgmStep++;
+          this.bgmTimer = setTimeout(tick, stepDurationSec * 1000);
+        };
+
+        tick();
+      }
+
+      stopBgm() {
+        this.isBgmPlaying = false;
+        if (this.bgmTimer) {
+          clearTimeout(this.bgmTimer);
+          this.bgmTimer = null;
+        }
+      }
+    }
+
+    const audio = new ArcadeAudioEngine();
+
+    // 全域使用者首次觸控/點擊自動解鎖音訊與啟動 BGM
+    const autoUnlockAudio = () => {
+      audio.unlock();
+      window.removeEventListener('pointerdown', autoUnlockAudio);
+      window.removeEventListener('touchstart', autoUnlockAudio);
+      window.removeEventListener('keydown', autoUnlockAudio);
+    };
+    window.addEventListener('pointerdown', autoUnlockAudio, { passive: true });
+    window.addEventListener('touchstart', autoUnlockAudio, { passive: true });
+    window.addEventListener('keydown', autoUnlockAudio, { passive: true });
+
+    // =========================================================================
+    // 1. 場景與渲染器設置
+    // =========================================================================
+    const container = document.getElementById('canvas-container');
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x161922);
+
+    const camera = new THREE.PerspectiveCamera(40, window.innerWidth / window.innerHeight, 0.1, 100);
+    camera.position.set(0.35, 2.55, 5.1);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.12;
+    container.appendChild(renderer.domElement);
+
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.06;
+    controls.target.set(0, 1.48, 0.15);
+    controls.minDistance = 1.8;
+    controls.maxDistance = 11;
+
+    // 2. 燈光設置
+    scene.add(new THREE.AmbientLight(0xffffff, 0.85));
+
+    const keyLight = new THREE.DirectionalLight(0xfff8eb, 1.8);
+    keyLight.position.set(4, 7, 5);
+    keyLight.castShadow = true;
+    keyLight.shadow.mapSize.width = 2048;
+    keyLight.shadow.mapSize.height = 2048;
+    keyLight.shadow.camera.near = 1;
+    keyLight.shadow.camera.far = 20;
+    keyLight.shadow.bias = -0.0005;
+    scene.add(keyLight);
+
+    const fillLight = new THREE.DirectionalLight(0xdbeafe, 0.75);
+    fillLight.position.set(-5, 3, 4);
+    scene.add(fillLight);
+
+    const backLight = new THREE.DirectionalLight(0xffffff, 0.5);
+    backLight.position.set(0, 5, -5);
+    scene.add(backLight);
+
+    // 展示底座圓盤
+    const floor = new THREE.Mesh(
+      new THREE.CircleGeometry(6, 64),
+      new THREE.MeshStandardMaterial({ color: 0x1e222d, roughness: 0.85, metalness: 0.1 })
+    );
+    floor.rotation.x = -Math.PI / 2;
+    floor.receiveShadow = true;
+    scene.add(floor);
+
+    const gridHelper = new THREE.GridHelper(10, 20, 0x2d3343, 0x222734);
+    gridHelper.position.y = 0.002;
+    scene.add(gridHelper);
+
+    // 3. 遊戲狀態與規則定義
+    const betChannels = [
+      { id: 'bar',    icon: 'BAR',  odds: 100, color: '#fbbf24', bg: '#1e293b' },
+      { id: '77',     icon: '77',   odds: 40,  color: '#ef4444', bg: '#fee2e2' },
+      { id: 'star',   icon: '⭐⭐', odds: 30,  color: '#eab308', bg: '#fef9c3' },
+      { id: 'melon',  icon: '🍉',   odds: 20,  color: '#16a34a', bg: '#dcfce7' },
+      { id: 'bell',   icon: '🔔',   odds: 15,  color: '#d97706', bg: '#fef3c7' },
+      { id: 'lemon',  icon: '🍋',   odds: 10,  color: '#ca8a04', bg: '#fef9c3' },
+      { id: 'orange', icon: '🍊',   odds: 10,  color: '#ea580c', bg: '#ffedd5' },
+      { id: 'apple',  icon: '🍎',   odds: 5,   color: '#dc2626', bg: '#fee2e2' }
+    ];
+
+    const boardCells = [
+      { label: '🍊', type: 'orange', mult: 10, bg: '#f8fafc', tag: '' },
+      { label: '🔔', type: 'bell',   mult: 15, bg: '#fef08a', tag: '' },
+      { label: 'BAR', type: 'bar',   mult: 50, bg: '#1e293b', color: '#fbbf24', tag: 'X50' },
+      { label: 'BAR', type: 'bar',   mult: 100,bg: '#dc2626', color: '#ffffff', tag: 'X100' },
+      { label: 'BAR', type: 'bar',   mult: 25, bg: '#1e293b', color: '#38bdf8', tag: 'X25' },
+      { label: '🍎', type: 'apple',  mult: 5,  bg: '#f8fafc', tag: '' },
+      { label: '🍉', type: 'melon',  mult: 20, bg: '#dcfce7', tag: '' },
+      { label: '🍉', type: 'melon',  mult: 2,  bg: '#f8fafc', tag: 'X2' },
+      { label: 'ONCE\nMORE', type: 'once', mult: 0, bg: '#f59e0b', color: '#7f1d1d', tag: '' },
+      { label: '🍎', type: 'apple',  mult: 5,  bg: '#f8fafc', tag: '' },
+      { label: '🍊', type: 'orange', mult: 2,  bg: '#fef3c7', tag: 'X2' },
+      { label: '🔔', type: 'bell',   mult: 15, bg: '#f8fafc', tag: '' },
+      { label: '🍋', type: 'lemon',  mult: 10, bg: '#f8fafc', tag: '' },
+      { label: '🔔', type: 'bell',   mult: 2,  bg: '#fef08a', tag: 'X2' },
+      { label: '77', type: '77',     mult: 2,  bg: '#fee2e2', color: '#dc2626', tag: 'X2' },
+      { label: '77', type: '77',     mult: 40, bg: '#dc2626', color: '#fef08a', tag: '' },
+      { label: '🍎', type: 'apple',  mult: 5,  bg: '#f8fafc', tag: '' },
+      { label: '🍋', type: 'lemon',  mult: 2,  bg: '#fce7f3', tag: 'X2' },
+      { label: '🍉', type: 'melon',  mult: 20, bg: '#dcfce7', tag: '' },
+      { label: '⭐⭐', type: 'star', mult: 30, bg: '#fef9c3', color: '#ca8a04', tag: '' },
+      { label: '⭐', type: 'star',   mult: 2,  bg: '#f8fafc', color: '#eab308', tag: 'X2' },
+      { label: 'ONCE\nMORE', type: 'once', mult: 0, bg: '#f59e0b', color: '#7f1d1d', tag: '' },
+      { label: '🍎', type: 'apple',  mult: 5,  bg: '#f8fafc', tag: '' },
+      { label: '🍊', type: 'orange', mult: 10, bg: '#fef3c7', tag: '' }
+    ];
+
+    const gameState = {
+      credit: 20,
+      winner: 0,
+      bets: [0, 0, 0, 0, 0, 0, 0, 0],
+      lastBets: [0, 0, 0, 0, 0, 0, 0, 0],
+      activeCell: 3,
+      centerDisplay: '10',
+      isSpinning: false
+    };
+
+    const statusBanner = document.getElementById('statusBanner');
+    function setStatus(msg) {
+      statusBanner.textContent = msg;
+    }
+
+    // 4. 動態繪製「小瑪莉」玻璃螢幕貼圖
+    const screenCanvas = document.createElement('canvas');
+    screenCanvas.width = 1024;
+    screenCanvas.height = 1160;
+    const ctx = screenCanvas.getContext('2d');
+    const screenTexture = new THREE.CanvasTexture(screenCanvas);
+    screenTexture.colorSpace = THREE.SRGBColorSpace;
+    screenTexture.anisotropy = 8;
+
+    function getCellCoords(index, startX, startY, cellW, cellH) {
+      if (index < 7) return { x: startX + index * cellW, y: startY };
+      if (index < 12) return { x: startX + 6 * cellW, y: startY + (index - 6) * cellH };
+      if (index < 19) return { x: startX + (18 - index) * cellW, y: startY + 6 * cellH };
+      return { x: startX, y: startY + (24 - index) * cellH };
+    }
+
+    function drawScreen() {
+      const W = screenCanvas.width;
+      const H = screenCanvas.height;
+
+      ctx.fillStyle = '#3b1d14';
+      ctx.fillRect(0, 0, W, H);
+
+      ctx.fillStyle = '#5c2c16';
+      ctx.fillRect(24, 18, W - 48, 108);
+      ctx.strokeStyle = '#d97706';
+      ctx.lineWidth = 4;
+      ctx.strokeRect(24, 18, W - 48, 108);
+
+      // 左側：得分欄 (WINNER)
+      ctx.fillStyle = '#7f1d1d';
+      ctx.beginPath();
+      ctx.roundRect(140, 32, 300, 80, 14);
+      ctx.fill();
+      ctx.strokeStyle = '#fbbf24';
+      ctx.lineWidth = 4;
+      ctx.stroke();
+
+      ctx.fillStyle = '#fde047';
+      ctx.font = 'bold 20px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('WINNER (得分)', 290, 54);
+
+      ctx.fillStyle = '#180404';
+      ctx.fillRect(170, 60, 240, 42);
+      ctx.fillStyle = '#ff2a2a';
+      ctx.font = 'bold 38px "Courier New", monospace';
+      ctx.textAlign = 'right';
+      ctx.fillText(String(gameState.winner), 395, 93);
+
+      // 右側：可用分數欄 (CREDIT)
+      ctx.fillStyle = '#7f1d1d';
+      ctx.beginPath();
+      ctx.roundRect(560, 32, 300, 80, 14);
+      ctx.fill();
+      ctx.strokeStyle = '#fbbf24';
+      ctx.lineWidth = 4;
+      ctx.stroke();
+
+      ctx.fillStyle = '#fde047';
+      ctx.font = 'bold 20px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('CREDIT (可用分數)', 710, 54);
+
+      ctx.fillStyle = '#180404';
+      ctx.fillRect(590, 60, 240, 42);
+      ctx.fillStyle = '#ff2a2a';
+      ctx.font = 'bold 38px "Courier New", monospace';
+      ctx.textAlign = 'right';
+      ctx.fillText(String(gameState.credit), 815, 93);
+
+      // 中央 7x7 盤面區域
+      const boardX = 36;
+      const boardY = 142;
+      const boardW = W - 72;
+      const boardH = 770;
+      const cellW = boardW / 7;
+      const cellH = boardH / 7;
+
+      const innerX = boardX + cellW;
+      const innerY = boardY + cellH;
+      const innerW = cellW * 5;
+      const innerH = cellH * 5;
+
+      const skyGrad = ctx.createLinearGradient(0, innerY, 0, innerY + innerH);
+      skyGrad.addColorStop(0, '#1d4ed8');
+      skyGrad.addColorStop(0.65, '#3b82f6');
+      skyGrad.addColorStop(0.66, '#65a30d');
+      skyGrad.addColorStop(1, '#3f6212');
+      ctx.fillStyle = skyGrad;
+      ctx.fillRect(innerX, innerY, innerW, innerH);
+
+      ctx.fillStyle = '#fef08a';
+      [[innerX + 80, innerY + 130], [innerX + 260, innerY + 70], [innerX + 580, innerY + 110], [innerX + 120, innerY + 260]].forEach(([sx, sy]) => {
+        ctx.beginPath();
+        ctx.arc(sx, sy, 4, 0, Math.PI * 2);
+        ctx.fill();
+      });
+
+      // 「小瑪莉」招牌字
+      ctx.save();
+      ctx.fillStyle = '#991b1b';
+      ctx.fillRect(innerX + 24, innerY + 24, 235, 76);
+      ctx.strokeStyle = '#fbbf24';
+      ctx.lineWidth = 4;
+      ctx.strokeRect(innerX + 24, innerY + 24, 235, 76);
+
+      ctx.font = '900 54px "Noto Sans TC", "Microsoft JhengHei", sans-serif';
+      ctx.textAlign = 'center';
+      ctx.lineWidth = 8;
+      ctx.strokeStyle = '#ffffff';
+      ctx.strokeText('小瑪莉', innerX + 142, innerY + 82);
+      ctx.fillStyle = '#ef4444';
+      ctx.fillText('小瑪莉', innerX + 142, innerY + 82);
+      ctx.restore();
+
+      // 左側小烏龜角色
+      ctx.fillStyle = '#facc15';
+      ctx.beginPath();
+      ctx.ellipse(innerX + 165, innerY + 380, 42, 55, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(innerX + 155, innerY + 310, 32, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#16a34a';
+      ctx.beginPath();
+      ctx.ellipse(innerX + 190, innerY + 375, 25, 45, 0.2, 0, Math.PI * 2);
+      ctx.fill();
+
+      // 中央紅框數字
+      ctx.fillStyle = '#dc2626';
+      ctx.fillRect(innerX + 290, innerY + 365, 88, 52);
+      ctx.strokeStyle = '#fde047';
+      ctx.lineWidth = 3;
+      ctx.strokeRect(innerX + 290, innerY + 365, 88, 52);
+      ctx.fillStyle = '#fde047';
+      ctx.font = 'bold 34px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText(String(gameState.centerDisplay), innerX + 334, innerY + 403);
+
+      // 右側紅帽角色
+      ctx.fillStyle = '#2563eb';
+      ctx.beginPath();
+      ctx.ellipse(innerX + 495, innerY + 295, 58, 72, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#fed7aa';
+      ctx.beginPath();
+      ctx.arc(innerX + 475, innerY + 185, 45, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#dc2626';
+      ctx.beginPath();
+      ctx.arc(innerX + 480, innerY + 165, 46, Math.PI, 0);
+      ctx.fill();
+      ctx.fillRect(innerX + 425, innerY + 158, 70, 14);
+      ctx.fillStyle = '#15803d';
+      ctx.beginPath();
+      ctx.ellipse(innerX + 495, innerY + 415, 62, 34, 0, Math.PI, 0);
+      ctx.fill();
+      ctx.fillStyle = '#fef08a';
+      ctx.fillRect(innerX + 433, innerY + 415, 124, 14);
+
+      // 外圈 24 個轉盤格子
+      for (let i = 0; i < 24; i++) {
+        const cell = boardCells[i];
+        const { x, y } = getCellCoords(i, boardX, boardY, cellW, cellH);
+        const isLit = (i === gameState.activeCell);
+
+        ctx.fillStyle = isLit ? '#fef08a' : cell.bg;
+        ctx.fillRect(x + 3, y + 3, cellW - 6, cellH - 6);
+
+        ctx.lineWidth = isLit ? 9 : 3;
+        ctx.strokeStyle = isLit ? '#ff1e1e' : '#78350f';
+        ctx.strokeRect(x + 4, y + 4, cellW - 8, cellH - 8);
+
+        if (isLit) {
+          ctx.fillStyle = 'rgba(255, 40, 40, 0.28)';
+          ctx.fillRect(x + 4, y + 4, cellW - 8, cellH - 8);
+        }
+
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        if (cell.label.includes('\n')) {
+          const lines = cell.label.split('\n');
+          ctx.fillStyle = cell.color || '#7f1d1d';
+          ctx.font = '900 22px sans-serif';
+          ctx.fillText(lines[0], x + cellW / 2, y + cellH * 0.38);
+          ctx.fillText(lines[1], x + cellW / 2, y + cellH * 0.65);
+        } else if (cell.label === 'BAR' || cell.label === '77') {
+          ctx.fillStyle = cell.color || '#ffffff';
+          ctx.font = '900 36px sans-serif';
+          ctx.fillText(cell.label, x + cellW / 2, y + cellH * (cell.tag ? 0.62 : 0.52));
+        } else {
+          ctx.font = '52px sans-serif';
+          ctx.fillText(cell.label, x + cellW / 2, y + cellH * (cell.tag ? 0.45 : 0.52));
+        }
+
+        if (cell.tag) {
+          ctx.fillStyle = '#dc2626';
+          ctx.font = 'bold 18px sans-serif';
+          const tagY = (cell.label === 'BAR') ? y + cellH * 0.22 : y + cellH * 0.82;
+          ctx.fillText(cell.tag, x + cellW / 2, tagY);
+        }
+      }
+
+      // 底部 8 格押注賠率區
+      const betY = 930;
+      const betW = boardW / 8;
+
+      betChannels.forEach((item, idx) => {
+        const bx = boardX + idx * betW;
+        ctx.fillStyle = item.bg;
+        ctx.fillRect(bx + 4, betY, betW - 8, 85);
+        ctx.strokeStyle = '#fbbf24';
+        ctx.lineWidth = 3;
+        ctx.strokeRect(bx + 4, betY, betW - 8, 85);
+
+        ctx.fillStyle = item.color;
+        ctx.font = item.icon.length > 2 ? 'bold 28px sans-serif' : '40px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(item.icon, bx + betW / 2, betY + 34);
+
+        ctx.fillStyle = item.id === 'bar' ? '#fde047' : '#7f1d1d';
+        ctx.font = 'bold 18px sans-serif';
+        ctx.fillText(`X${item.odds}`, bx + betW / 2, betY + 70);
+
+        const betVal = gameState.bets[idx];
+        ctx.fillStyle = betVal > 0 ? '#7f1d1d' : '#450a0a';
+        ctx.fillRect(bx + 4, betY + 92, betW - 8, 95);
+        ctx.strokeStyle = betVal > 0 ? '#fde047' : '#f87171';
+        ctx.lineWidth = betVal > 0 ? 4 : 3;
+        ctx.strokeRect(bx + 4, betY + 92, betW - 8, 95);
+
+        ctx.fillStyle = betVal > 0 ? '#fef08a' : '#ffffff';
+        ctx.font = 'bold 46px "Courier New", monospace';
+        ctx.fillText(String(betVal), bx + betW / 2, betY + 142);
+      });
+
+      screenTexture.needsUpdate = true;
+    }
+
+    drawScreen();
+
+    // 5. 木紋與金屬材質
+    function createWoodTexture(baseColor, grainColor) {
+      const c = document.createElement('canvas');
+      c.width = 512;
+      c.height = 512;
+      const g = c.getContext('2d');
+      g.fillStyle = baseColor;
+      g.fillRect(0, 0, 512, 512);
+      g.fillStyle = grainColor;
+      for (let i = 0; i < 160; i++) {
+        const y = Math.random() * 512;
+        const h = 1 + Math.random() * 3;
+        g.globalAlpha = 0.08 + Math.random() * 0.16;
+        g.fillRect(0, y, 512, h);
+      }
+      const tex = new THREE.CanvasTexture(c);
+      tex.wrapS = THREE.RepeatWrapping;
+      tex.wrapT = THREE.RepeatWrapping;
+      tex.colorSpace = THREE.SRGBColorSpace;
+      return tex;
+    }
+
+    const whiteCabinetMat = new THREE.MeshStandardMaterial({ color: 0xdce3ea, roughness: 0.35, metalness: 0.08 });
+    const darkWoodMat = new THREE.MeshStandardMaterial({ map: createWoodTexture('#2c211d', '#120c0a'), roughness: 0.45, metalness: 0.05 });
+    const lightWoodMat = new THREE.MeshStandardMaterial({ map: createWoodTexture('#dfd5c5', '#b8a994'), roughness: 0.5, metalness: 0.04 });
+    const chromeMat = new THREE.MeshStandardMaterial({ color: 0xe2e8f0, roughness: 0.22, metalness: 0.85 });
+    const brushedMetalMat = new THREE.MeshStandardMaterial({ color: 0xcbd5e1, roughness: 0.35, metalness: 0.75 });
+    const darkCavityMat = new THREE.MeshStandardMaterial({ color: 0x0b0d12, roughness: 0.9, metalness: 0.1 });
+
+    // 6. 組裝「小瑪莉遊戲機」3D 幾何模型
+    const arcadeGroup = new THREE.Group();
+    arcadeGroup.name = 'LittleMaryArcadeMachine';
+    scene.add(arcadeGroup);
+
+    const cabinetMeshes = [];
+    function registerCabinetMesh(mesh) {
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      cabinetMeshes.push(mesh);
+      arcadeGroup.add(mesh);
+      return mesh;
+    }
+
+    const baseWidth = 2.2, baseHeight = 1.15, baseDepth = 1.75;
+    const baseBox = new THREE.Mesh(new RoundedBoxGeometry(baseWidth, baseHeight, baseDepth, 4, 0.04), whiteCabinetMat);
+    baseBox.position.set(0, baseHeight / 2, 0.12);
+    registerCabinetMesh(baseBox);
+
+    const upperWidth = 2.2, upperHeight = 1.85, upperDepth = 1.05;
+    const upperBox = new THREE.Mesh(new RoundedBoxGeometry(upperWidth, upperHeight, upperDepth, 4, 0.04), whiteCabinetMat);
+    upperBox.position.set(0, baseHeight + upperHeight / 2 - 0.04, -0.23);
+    registerCabinetMesh(upperBox);
+
+    const slopeMesh = new THREE.Mesh(new RoundedBoxGeometry(2.16, 0.22, 0.78, 3, 0.02), whiteCabinetMat);
+    slopeMesh.position.set(0, baseHeight + 0.01, 0.56);
+    slopeMesh.rotation.x = 0.22;
+    registerCabinetMesh(slopeMesh);
+
+    // 玻璃螢幕與金屬壓條框（中心 X = -0.22，外框總寬 1.445）
+    const screenCenterX = -0.22;
+    const screenGroup = new THREE.Group();
+    screenGroup.position.set(screenCenterX, baseHeight + 0.92, 0.305);
+    arcadeGroup.add(screenGroup);
+
+    const glassMesh = new THREE.Mesh(
+      new THREE.PlaneGeometry(1.36, 1.54),
+      new THREE.MeshStandardMaterial({
+        map: screenTexture,
+        emissiveMap: screenTexture,
+        emissive: new THREE.Color(0xffffff),
+        emissiveIntensity: 0.42,
+        roughness: 0.15,
+        metalness: 0.05
+      })
+    );
+    screenGroup.add(glassMesh);
+
+    const frameThickness = 0.045;
+    const topFrame = new THREE.Mesh(new THREE.BoxGeometry(1.445, frameThickness, 0.025), brushedMetalMat);
+    topFrame.position.set(0, 0.77, 0.005);
+    const botFrame = new THREE.Mesh(new THREE.BoxGeometry(1.445, frameThickness, 0.025), brushedMetalMat);
+    botFrame.position.set(0, -0.77, 0.005);
+    const leftFrame = new THREE.Mesh(new THREE.BoxGeometry(frameThickness, 1.58, 0.025), brushedMetalMat);
+    leftFrame.position.set(-0.70, 0, 0.005);
+    const rightFrame = new THREE.Mesh(new THREE.BoxGeometry(frameThickness, 1.58, 0.025), brushedMetalMat);
+    rightFrame.position.set(0.70, 0, 0.005);
+    screenGroup.add(topFrame, botFrame, leftFrame, rightFrame);
+
+    const screwGeo = new THREE.CylinderGeometry(0.014, 0.014, 0.015, 12);
+    screwGeo.rotateX(Math.PI / 2);
+    [[-0.70, 0.77], [0, 0.77], [0.70, 0.77], [-0.70, -0.77], [0, -0.77], [0.70, -0.77]].forEach(([sx, sy]) => {
+      const screw = new THREE.Mesh(screwGeo, chromeMat);
+      screw.position.set(sx, sy, 0.018);
+      screenGroup.add(screw);
+    });
+
+    // 右上角投幣器組件
+    const coinGroup = new THREE.Group();
+    coinGroup.position.set(0.76, baseHeight + 1.34, 0.305);
+    arcadeGroup.add(coinGroup);
+
+    const coinPlate = new THREE.Mesh(new RoundedBoxGeometry(0.36, 0.58, 0.025, 2, 0.01), brushedMetalMat);
+    coinPlate.userData = { action: 'insert_coin' };
+    coinGroup.add(coinPlate);
+
+    const triShape = new THREE.Shape();
+    triShape.moveTo(0, 0.07);
+    triShape.lineTo(-0.06, -0.04);
+    triShape.lineTo(0.06, -0.04);
+    triShape.closePath();
+    const triMesh = new THREE.Mesh(
+      new THREE.ExtrudeGeometry(triShape, { depth: 0.025, bevelEnabled: true, bevelSize: 0.004, bevelThickness: 0.004 }),
+      chromeMat
+    );
+    triMesh.position.set(0, 0.16, 0.012);
+    coinGroup.add(triMesh);
+
+    const slotHousing = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.18, 0.03), chromeMat);
+    slotHousing.position.set(0.02, 0.01, 0.02);
+    const coinSlit = new THREE.Mesh(new THREE.BoxGeometry(0.014, 0.09, 0.035), darkCavityMat);
+    coinSlit.position.set(0.02, 0.02, 0.022);
+    const rejectBox = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.13, 0.04), chromeMat);
+    rejectBox.position.set(0, -0.17, 0.025);
+    const rejectHole = new THREE.Mesh(new THREE.BoxGeometry(0.10, 0.09, 0.045), darkCavityMat);
+    rejectHole.position.set(0, -0.17, 0.028);
+    coinGroup.add(slotHousing, coinSlit, rejectBox, rejectHole);
+
+    // 7. 操作面板與上下兩排按鍵（精準對齊上方螢幕 X = -0.22 與總寬度 1.445）
+    const panelGroup = new THREE.Group();
+    panelGroup.position.set(screenCenterX, baseHeight + 0.125, 0.56);
+    panelGroup.rotation.x = 0.22;
+    arcadeGroup.add(panelGroup);
+
+    const padCanvas = document.createElement('canvas');
+    padCanvas.width = 1024;
+    padCanvas.height = 420;
+    const pCtx = padCanvas.getContext('2d');
+    pCtx.fillStyle = '#0f172a';
+    pCtx.fillRect(0, 0, 1024, 420);
+    pCtx.strokeStyle = '#eab308';
+    pCtx.lineWidth = 6;
+    pCtx.strokeRect(14, 14, 996, 392);
+
+    pCtx.beginPath();
+    pCtx.moveTo(14, 210);
+    pCtx.lineTo(1010, 210);
+    pCtx.moveTo(475, 14);
+    pCtx.lineTo(475, 210);
+    pCtx.moveTo(915, 14);
+    pCtx.lineTo(915, 210);
+    pCtx.stroke();
+
+    pCtx.fillStyle = '#fde047';
+    pCtx.font = 'bold 20px "Noto Sans TC", sans-serif';
+    pCtx.textAlign = 'center';
+    const topLabelsLeft = ['得分/移分', '比倍小(1-6)', '比倍大(8-13)'];
+    topLabelsLeft.forEach((txt, i) => {
+      pCtx.fillText(txt, 95 + i * 145, 192);
+    });
+    const topLabelsRight = ['全押/續押', '清除押注', '啟動開始'];
+    topLabelsRight.forEach((txt, i) => {
+      pCtx.fillText(txt, 555 + i * 145, 192);
+    });
+    pCtx.fillStyle = '#f87171';
+    pCtx.fillText('退幣', 962, 192);
+
+    // 下排 8 個文字標籤與螢幕底部 8 個賠率格完全垂直對齊
+    const botLabels = ['BAR', '77', '雙星', '西瓜', '雙鈴', '檸檬', '橘子', '蘋果'];
+    pCtx.fillStyle = '#e2e8f0';
+    pCtx.font = 'bold 22px "Noto Sans TC", sans-serif';
+    botLabels.forEach((txt, i) => {
+      const lx = (1024 / 8) * (i + 0.5);
+      pCtx.fillText(txt, lx, 392);
+    });
+
+    const padTex = new THREE.CanvasTexture(padCanvas);
+    padTex.colorSpace = THREE.SRGBColorSpace;
+    const controlBoard = new THREE.Mesh(
+      new THREE.BoxGeometry(1.445, 0.02, 0.56),
+      new THREE.MeshStandardMaterial({ map: padTex, roughness: 0.38 })
+    );
+    panelGroup.add(controlBoard);
+
+    const interactiveButtons = [];
+    const keyBaseMat = new THREE.MeshStandardMaterial({ color: 0x1f2937, roughness: 0.6 });
+    const whiteKeyMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.25 });
+    const redRoundKeyMat = new THREE.MeshStandardMaterial({ color: 0xef4444, roughness: 0.3 });
+
+    function createSquareButton(x, z, actionData) {
+      const socket = new THREE.Mesh(new THREE.BoxGeometry(0.112, 0.025, 0.112), keyBaseMat);
+      socket.position.set(x, 0.02, z);
+      panelGroup.add(socket);
+
+      const cap = new THREE.Mesh(new RoundedBoxGeometry(0.094, 0.048, 0.094, 2, 0.012), whiteKeyMat);
+      cap.position.set(x, 0.046, z);
+      cap.castShadow = true;
+      cap.userData = { ...actionData, restY: 0.046 };
+      panelGroup.add(cap);
+      interactiveButtons.push(cap);
+    }
+
+    // 上排左側 3 顆（得分、比倍小、比倍大）
+    const topLeftActions = [
+      { action: 'take_score', label: '得分/移分' },
+      { action: 'bet_small',  label: '比倍小 (1-6)' },
+      { action: 'bet_big',    label: '比倍大 (8-13)' }
+    ];
+    topLeftActions.forEach((act, i) => {
+      createSquareButton(-0.585 + i * 0.205, -0.14, act);
+    });
+
+    // 上排右側 3 顆（全押/續押、清除、啟動）
+    const topRightActions = [
+      { action: 'bet_all', label: '全押/續押' },
+      { action: 'clear',   label: '清除押注' },
+      { action: 'start',   label: '啟動開始' }
+    ];
+    topRightActions.forEach((act, i) => {
+      createSquareButton(0.06 + i * 0.205, -0.14, act);
+    });
+
+    // 上排最右側：小圓退幣按鈕
+    const ejectSocket = new THREE.Mesh(new THREE.CylinderGeometry(0.040, 0.043, 0.025, 20), keyBaseMat);
+    ejectSocket.position.set(0.635, 0.02, -0.14);
+    panelGroup.add(ejectSocket);
+
+    const ejectCap = new THREE.Mesh(new THREE.CylinderGeometry(0.030, 0.030, 0.045, 20), redRoundKeyMat);
+    ejectCap.position.set(0.635, 0.045, -0.14);
+    ejectCap.castShadow = true;
+    ejectCap.userData = { action: 'payout', label: '退幣鈕', restY: 0.045 };
+    panelGroup.add(ejectCap);
+    interactiveButtons.push(ejectCap);
+
+    // 下排 8 顆押注鈕：與螢幕下方 8 格賠率區垂直對齊 (螢幕有效寬度 1.264，每格 0.158)
+    const screenInnerBoardW = 1.36 * ((1024 - 72) / 1024);
+    const colStep = screenInnerBoardW / 8;
+    for (let col = 0; col < 8; col++) {
+      const kx = (col - 3.5) * colStep;
+      createSquareButton(kx, 0.12, {
+        action: 'bet_item',
+        index: col,
+        label: betChannels[col].icon
+      });
+    }
+
+    // (G) 下方退幣承接盒與動態掉幣效果
+    const trayGroup = new THREE.Group();
+    trayGroup.position.set(0, 0.46, 1.00);
+    arcadeGroup.add(trayGroup);
+
+    const trayBackplate = new THREE.Mesh(new RoundedBoxGeometry(1.16, 0.44, 0.03, 4, 0.04), brushedMetalMat);
+    const trayHole = new THREE.Mesh(new THREE.BoxGeometry(0.96, 0.28, 0.04), darkCavityMat);
+    trayHole.position.set(0, 0.01, 0.005);
+    const scoopBottom = new THREE.Mesh(new RoundedBoxGeometry(1.04, 0.03, 0.24, 3, 0.01), brushedMetalMat);
+    scoopBottom.position.set(0, -0.14, 0.11);
+    const scoopFront = new THREE.Mesh(new RoundedBoxGeometry(1.04, 0.15, 0.03, 3, 0.01), brushedMetalMat);
+    scoopFront.position.set(0, -0.075, 0.22);
+    const scoopLeft = new THREE.Mesh(new RoundedBoxGeometry(0.03, 0.15, 0.24, 3, 0.01), brushedMetalMat);
+    scoopLeft.position.set(-0.505, -0.075, 0.11);
+    const scoopRight = new THREE.Mesh(new RoundedBoxGeometry(0.03, 0.15, 0.24, 3, 0.01), brushedMetalMat);
+    scoopRight.position.set(0.505, -0.075, 0.11);
+    trayGroup.add(trayBackplate, trayHole, scoopBottom, scoopFront, scoopLeft, scoopRight);
+
+    const coinsPool = [];
+    const coinGeo = new THREE.CylinderGeometry(0.042, 0.042, 0.008, 20);
+    const goldMat = new THREE.MeshStandardMaterial({ color: 0xfbbf24, metalness: 0.85, roughness: 0.2 });
+    function spawnPayoutCoin() {
+      audio.playPayoutCoin();
+      const coin = new THREE.Mesh(coinGeo, goldMat);
+      coin.position.set((Math.random() - 0.5) * 0.65, -0.118, 0.08 + Math.random() * 0.08);
+      coin.rotation.y = Math.random() * Math.PI;
+      trayGroup.add(coin);
+      coinsPool.push(coin);
+      if (coinsPool.length > 25) {
+        const old = coinsPool.shift();
+        trayGroup.remove(old);
+      }
+    }
+
+    // 右側機箱鎖頭與防滑腳墊
+    const lockBarrel = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.04, 16), chromeMat);
+    lockBarrel.rotation.z = Math.PI / 2;
+    lockBarrel.position.set(1.11, baseHeight + 0.18, 0.1);
+    const padlockBody = new THREE.Mesh(
+      new RoundedBoxGeometry(0.04, 0.12, 0.08, 2, 0.008),
+      new THREE.MeshStandardMaterial({ color: 0xd97706, metalness: 0.8, roughness: 0.3 })
+    );
+    padlockBody.position.set(1.13, baseHeight + 0.08, 0.1);
+    arcadeGroup.add(lockBarrel, padlockBody);
+
+    const footGeo = new THREE.CylinderGeometry(0.08, 0.09, 0.03, 16);
+    const footMat = new THREE.MeshStandardMaterial({ color: 0x111827, roughness: 0.9 });
+    [[-0.85, -0.55], [0.85, -0.55], [-0.85, 0.78], [0.85, 0.78]].forEach(([fx, fz]) => {
+      const foot = new THREE.Mesh(footGeo, footMat);
+      foot.position.set(fx, 0.015, fz);
+      arcadeGroup.add(foot);
+    });
+
+    // 8. 遊戲互動與按鍵邏輯處理
+    function autoTakeScoreIfNeeded() {
+      if (gameState.winner > 0) {
+        gameState.credit += gameState.winner;
+        gameState.winner = 0;
+      }
+    }
+
+    function handleMachineAction(data) {
+      audio.unlock();
+      if (gameState.isSpinning) return;
+
+      switch (data.action) {
+        case 'insert_coin':
+          audio.playCoin();
+          gameState.credit += 10;
+          setStatus('🪙 投入代幣：可用分數 +10 分！');
+          break;
+
+        case 'bet_item': {
+          autoTakeScoreIfNeeded();
+          const idx = data.index;
+          if (gameState.credit <= 0) {
+            audio.playLose();
+            setStatus('⚠️ 分數不足！請點擊右上角投幣器或面板「投幣」按鈕。');
+            break;
+          }
+          if (gameState.bets[idx] < 99) {
+            audio.playBet(idx);
+            gameState.credit -= 1;
+            gameState.bets[idx] += 1;
+            setStatus(`押注【${betChannels[idx].icon}】目前 ${gameState.bets[idx]} 分 (賠率 ${betChannels[idx].odds} 倍)`);
+          }
+          break;
+        }
+
+        case 'bet_all': {
+          autoTakeScoreIfNeeded();
+          const currentTotal = gameState.bets.reduce((a, b) => a + b, 0);
+          const lastTotal = gameState.lastBets.reduce((a, b) => a + b, 0);
+          if (currentTotal === 0 && lastTotal > 0 && gameState.credit >= lastTotal) {
+            audio.playButton();
+            gameState.bets = [...gameState.lastBets];
+            gameState.credit -= lastTotal;
+            setStatus(`🔁 已續押上一局配置（共 ${lastTotal} 分）`);
+          } else {
+            let added = 0;
+            for (let i = 0; i < 8; i++) {
+              if (gameState.credit > 0 && gameState.bets[i] < 99) {
+                gameState.credit -= 1;
+                gameState.bets[i] += 1;
+                added++;
+              }
+            }
+            if (added > 0) {
+              audio.playButton();
+              setStatus('🔥 全押 +1 分！');
+            } else {
+              audio.playLose();
+              setStatus('⚠️ 分數不足無法全押');
+            }
+          }
+          break;
+        }
+
+        case 'clear': {
+          const refund = gameState.bets.reduce((a, b) => a + b, 0);
+          if (refund > 0) {
+            audio.playButton();
+            gameState.credit += refund;
+            gameState.bets = [0, 0, 0, 0, 0, 0, 0, 0];
+            setStatus(`🧹 已清除押注，退回 ${refund} 分至可用分數`);
+          }
+          break;
+        }
+
+        case 'take_score': {
+          if (gameState.winner > 0) {
+            audio.playTakeScore();
+            const gain = gameState.winner;
+            gameState.credit += gain;
+            gameState.winner = 0;
+            setStatus(`💰 得分移分成功！+${gain} 分已轉入 CREDIT`);
+          } else {
+            audio.playButton();
+            setStatus('ℹ️ 目前得分欄為 0，無須移分');
+          }
+          break;
+        }
+
+        case 'bet_small':
+        case 'bet_big': {
+          if (gameState.winner <= 0) {
+            audio.playLose();
+            setStatus('⚠️ 中獎得分後才可按「比倍小 / 比倍大」翻倍！');
+            break;
+          }
+          const pool = [1, 2, 3, 4, 5, 6, 8, 9, 10, 11, 12, 13];
+          const roll = pool[Math.floor(Math.random() * pool.length)];
+          gameState.centerDisplay = roll;
+          const isWin = (data.action === 'bet_small' && roll <= 6) || (data.action === 'bet_big' && roll >= 8);
+          if (isWin) {
+            audio.playWin(false);
+            gameState.winner *= 2;
+            setStatus(`🎉 開出 ${roll} 點！比倍猜中，獎金翻倍為 ${gameState.winner} 分！`);
+          } else {
+            audio.playLose();
+            gameState.winner = 0;
+            setStatus(`💥 開出 ${roll} 點！比倍猜錯，本局獎金歸零`);
+          }
+          break;
+        }
+
+        case 'start': {
+          autoTakeScoreIfNeeded();
+          const totalBet = gameState.bets.reduce((a, b) => a + b, 0);
+          if (totalBet === 0) {
+            const lastTotal = gameState.lastBets.reduce((a, b) => a + b, 0);
+            if (lastTotal > 0 && gameState.credit >= lastTotal) {
+              gameState.bets = [...gameState.lastBets];
+              gameState.credit -= lastTotal;
+            } else {
+              audio.playLose();
+              setStatus('⚠️ 請先按下排 8 顆白色按鍵進行押注，再按「啟動」！');
+              break;
+            }
+          }
+          audio.playButton();
+          gameState.lastBets = [...gameState.bets];
+          startMarqueeSpin();
+          break;
+        }
+
+        case 'payout': {
+          autoTakeScoreIfNeeded();
+          if (gameState.credit > 0) {
+            const coinsToDrop = Math.min(gameState.credit, 10);
+            gameState.credit -= coinsToDrop;
+            for (let i = 0; i < coinsToDrop; i++) {
+              setTimeout(() => spawnPayoutCoin(), i * 95);
+            }
+            setStatus(`🪙 退幣 ${coinsToDrop} 枚代幣至下方退幣槽！`);
+          } else {
+            audio.playLose();
+            setStatus('ℹ️ 目前可用分數為 0，無代幣可退');
+          }
+          break;
+        }
+      }
+
+      drawScreen();
+    }
+
+    function startMarqueeSpin() {
+      gameState.isSpinning = true;
+      setStatus('🎰 跑馬燈轉動中...');
+      const targetIndex = Math.floor(Math.random() * 24);
+      const extraRounds = 24 * 2;
+      const stepsNeeded = extraRounds + ((targetIndex - gameState.activeCell + 24) % 24);
+      let currentStep = 0;
+
+      function step() {
+        gameState.activeCell = (gameState.activeCell + 1) % 24;
+        audio.playStep(currentStep);
+        drawScreen();
+        currentStep++;
+
+        if (currentStep < stepsNeeded) {
+          const remaining = stepsNeeded - currentStep;
+          const delay = remaining > 12 ? 48 : 48 + (13 - remaining) * 32;
+          setTimeout(step, delay);
+        } else {
+          gameState.isSpinning = false;
+          const landed = boardCells[gameState.activeCell];
+          if (landed.type === 'once') {
+            audio.playOnceMore();
+            setStatus('✨ 命中 ONCE MORE！免費再轉一次！');
+            setTimeout(() => startMarqueeSpin(), 650);
+            return;
+          }
+
+          const betIdx = betChannels.findIndex(c => c.id === landed.type);
+          const userBet = betIdx >= 0 ? gameState.bets[betIdx] : 0;
+          if (userBet > 0) {
+            const prize = userBet * landed.mult;
+            gameState.winner = prize;
+            const isBig = (landed.type === 'bar' || landed.type === '77' || landed.mult >= 30);
+            audio.playWin(isBig);
+            setStatus(`🎊 中獎【${landed.label}】獲得 ${prize} 分！可按「比倍」或「得分移分」`);
+          } else {
+            audio.playLose();
+            setStatus(`開出【${landed.label}】，未押中。請重新押注或按「全押/續押」`);
+          }
+          gameState.bets = [0, 0, 0, 0, 0, 0, 0, 0];
+          drawScreen();
+        }
+      }
+
+      step();
+    }
+
+    // 9. 3D 滑鼠/觸控點擊按鍵偵測
+    const raycaster = new THREE.Raycaster();
+    const pointer = new THREE.Vector2();
+    let pointerDownPos = { x: 0, y: 0 };
+
+    renderer.domElement.addEventListener('pointerdown', (e) => {
+      audio.unlock();
+      pointerDownPos = { x: e.clientX, y: e.clientY };
+    });
+
+    renderer.domElement.addEventListener('pointerup', (e) => {
+      const dist = Math.hypot(e.clientX - pointerDownPos.x, e.clientY - pointerDownPos.y);
+      if (dist > 6) return;
+
+      const rect = renderer.domElement.getBoundingClientRect();
+      pointer.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+      pointer.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+
+      raycaster.setFromCamera(pointer, camera);
+      const clickTargets = [...interactiveButtons, coinPlate];
+      const intersects = raycaster.intersectObjects(clickTargets, false);
+
+      if (intersects.length > 0) {
+        const hit = intersects[0].object;
+        if (hit.userData && hit.userData.restY !== undefined) {
+          hit.position.y = hit.userData.restY - 0.022;
+          setTimeout(() => {
+            hit.position.y = hit.userData.restY;
+          }, 130);
+        }
+        handleMachineAction(hit.userData);
+      }
+    });
+
+    // 10. UI 控制面板事件
+    const panel = document.getElementById('controlPanel');
+    const panelHeader = document.getElementById('panelHeader');
+    const toggleBtn = document.getElementById('toggleBtn');
+    panelHeader.addEventListener('click', () => {
+      panel.classList.toggle('collapsed');
+      toggleBtn.textContent = panel.classList.contains('collapsed') ? '▸' : '▾';
+    });
+
+    const themeMap = { white: whiteCabinetMat, darkwood: darkWoodMat, lightwood: lightWoodMat };
+    document.querySelectorAll('.style-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.style-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        const mat = themeMap[btn.dataset.theme];
+        cabinetMeshes.forEach(m => { m.material = mat; });
+      });
+    });
+
+    const toggleBgmBtn = document.getElementById('toggleBgmBtn');
+    toggleBgmBtn.addEventListener('click', () => {
+      audio.bgmEnabled = !audio.bgmEnabled;
+      if (audio.bgmEnabled) {
+        audio.unlock();
+        audio.startBgm();
+        toggleBgmBtn.textContent = '🎵 BGM：開啟';
+        toggleBgmBtn.classList.add('btn-active-green');
+        toggleBgmBtn.classList.remove('btn-secondary');
+      } else {
+        audio.stopBgm();
+        toggleBgmBtn.textContent = '🎵 BGM：靜音';
+        toggleBgmBtn.classList.remove('btn-active-green');
+        toggleBgmBtn.classList.add('btn-secondary');
+      }
+    });
+
+    const toggleSfxBtn = document.getElementById('toggleSfxBtn');
+    toggleSfxBtn.addEventListener('click', () => {
+      audio.sfxEnabled = !audio.sfxEnabled;
+      if (audio.sfxEnabled) {
+        audio.unlock();
+        audio.playButton();
+        toggleSfxBtn.textContent = '🔊 音效：開啟';
+        toggleSfxBtn.classList.add('btn-active-green');
+        toggleSfxBtn.classList.remove('btn-secondary');
+      } else {
+        toggleSfxBtn.textContent = '🔇 音效：靜音';
+        toggleSfxBtn.classList.remove('btn-active-green');
+        toggleSfxBtn.classList.add('btn-secondary');
+      }
+    });
+
+    document.getElementById('insertCoinBtn').addEventListener('click', () => {
+      handleMachineAction({ action: 'insert_coin' });
+    });
+
+    document.getElementById('focusKeysBtn').addEventListener('click', () => {
+      camera.position.set(screenCenterX, 2.35, 2.45);
+      controls.target.set(screenCenterX, 1.35, 0.45);
+      controls.update();
+    });
+
+    document.getElementById('resetCamBtn').addEventListener('click', () => {
+      camera.position.set(0.35, 2.55, 5.1);
+      controls.target.set(0, 1.48, 0.15);
+      controls.update();
+    });
+
+    document.getElementById('exportGlbBtn').addEventListener('click', () => {
+      const exporter = new GLTFExporter();
+      exporter.parse(
+        arcadeGroup,
+        (result) => {
+          const blob = new Blob([result], { type: 'application/octet-stream' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = 'little_mary_arcade.glb';
+          a.click();
+          URL.revokeObjectURL(url);
+        },
+        (error) => console.error('GLB 匯出錯誤:', error),
+        { binary: true }
+      );
+    });
+
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    function animate() {
+      requestAnimationFrame(animate);
+      controls.update();
+      renderer.render(scene, camera);
+    }
+
+    animate();
+  </script>
+</body>
+</html>
